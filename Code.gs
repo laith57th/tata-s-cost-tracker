@@ -13,8 +13,8 @@ const SHEET_PROD = 'Product Cost Summary';
  * though code CHANGES still require a redeploy (see SETUP.md).
  */
 var ALLOWED_EMAILS = [
-  'you@gmail.com',
-  'yourpartner@gmail.com'
+  'laith57th@gmail.com',
+  'leenhussin25@gmail.com'
 ];
 
 function doGet() {
@@ -67,14 +67,14 @@ function getData() {
   const ingredients = [];
   const iLast = ing.getLastRow();
   if (iLast >= 2) {
-    const v = ing.getRange(2, 1, iLast - 1, 11).getValues();
+    const v = ing.getRange(2, 1, iLast - 1, 10).getValues();
     v.forEach(function (r, i) {
       const name = String(r[0] || '').trim();
       if (!name || isNoteRow_(name)) return;
       ingredients.push({
-        row: i + 2, name: name, ar: r[1] || '', type: r[2] || '',
-        size: r[3] || '', price: r[4], qty: r[5], unit: r[6] || '',
-        costPerUnit: r[7], supplier: r[8] || '', notes: r[10] || ''
+        row: i + 2, name: name, type: r[1] || '',
+        size: r[2] || '', price: r[3], qty: r[4], unit: r[5] || '',
+        costPerUnit: r[6], supplier: r[7] || '', notes: r[9] || ''
       });
     });
   }
@@ -83,15 +83,15 @@ function getData() {
   const products = [];
   const pLast = prod.getLastRow();
   if (pLast >= 2) {
-    const v = prod.getRange(2, 1, pLast - 1, 12).getValues();
+    const v = prod.getRange(2, 1, pLast - 1, 11).getValues();
     v.forEach(function (r, i) {
       const name = String(r[0] || '').trim();
       if (!name || isNoteRow_(name)) return;
       products.push({
-        row: i + 2, name: name, ar: r[1] || '', yieldQty: r[2],
-        yieldUnit: r[3] || '', totalCost: r[4], costPerUnit: r[5],
-        packaging: r[6], labor: r[7], totalPerUnit: r[8],
-        price: r[9], margin: r[10], status: r[11] || ''
+        row: i + 2, name: name, yieldQty: r[1],
+        yieldUnit: r[2] || '', totalCost: r[3], costPerUnit: r[4],
+        packaging: r[5], labor: r[6], totalPerUnit: r[7],
+        price: r[8], margin: r[9], status: r[10] || ''
       });
     });
   }
@@ -100,13 +100,13 @@ function getData() {
   const lines = [];
   const rLast = rec.getLastRow();
   if (rLast >= 2) {
-    const v = rec.getRange(2, 1, rLast - 1, 10).getValues();
+    const v = rec.getRange(2, 1, rLast - 1, 8).getValues();
     v.forEach(function (r, i) {
-      const ingName = String(r[2] || '').trim();
+      const ingName = String(r[1] || '').trim();
       if (!ingName) return;
       lines.push({
-        row: i + 2, product: String(r[9] || '').trim(), ingredient: ingName,
-        qty: r[4], unit: r[5] || '', cost: r[7], notes: r[8] || ''
+        row: i + 2, product: String(r[7] || '').trim(), ingredient: ingName,
+        qty: r[2], unit: r[3] || '', cost: r[5], notes: r[6] || ''
       });
     });
   }
@@ -142,16 +142,15 @@ function addIngredient(d) {
 
   const row = firstBlankRow_(sheet, 1, 2);
   sheet.getRange(row, 1).setValue(name);
-  sheet.getRange(row, 2).setValue(d.ar || '');
-  sheet.getRange(row, 3).setValue(d.type || '');
-  sheet.getRange(row, 4).setValue(d.size || '');
-  sheet.getRange(row, 5).setValue(numOrBlank_(d.price));
-  sheet.getRange(row, 6).setValue(numOrBlank_(d.qty));
-  sheet.getRange(row, 7).setValue(d.unit || '');
-  sheet.getRange(row, 8).setFormula('=IF(F' + row + '=0,0,E' + row + '/F' + row + ')');
-  sheet.getRange(row, 9).setValue(d.supplier || '');
-  sheet.getRange(row, 10).setValue(new Date());
-  sheet.getRange(row, 11).setValue(d.notes || '');
+  sheet.getRange(row, 2).setValue(d.type || '');
+  sheet.getRange(row, 3).setValue(d.size || '');
+  sheet.getRange(row, 4).setValue(numOrBlank_(d.price));
+  sheet.getRange(row, 5).setValue(numOrBlank_(d.qty));
+  sheet.getRange(row, 6).setValue(d.unit || '');
+  sheet.getRange(row, 7).setFormula('=IF(E' + row + '=0,0,D' + row + '/E' + row + ')');
+  sheet.getRange(row, 8).setValue(d.supplier || '');
+  sheet.getRange(row, 9).setValue(new Date());
+  sheet.getRange(row, 10).setValue(d.notes || '');
 
   SpreadsheetApp.flush();
   return 'Added ingredient: ' + name;
@@ -165,23 +164,23 @@ function updateIngredientPrice(d) {
   if (!row) throw new Error('Could not find ingredient: ' + d.name);
 
   if (d.price !== '' && d.price !== null && d.price !== undefined) {
-    sheet.getRange(row, 5).setValue(Number(d.price));
+    sheet.getRange(row, 4).setValue(Number(d.price));
   }
   if (d.qty !== '' && d.qty !== null && d.qty !== undefined) {
-    sheet.getRange(row, 6).setValue(Number(d.qty));
+    sheet.getRange(row, 5).setValue(Number(d.qty));
   }
-  if (d.size)     sheet.getRange(row, 4).setValue(d.size);
-  if (d.unit)     sheet.getRange(row, 7).setValue(d.unit);
-  if (d.supplier) sheet.getRange(row, 9).setValue(d.supplier);
-  sheet.getRange(row, 10).setValue(new Date());
+  if (d.size)     sheet.getRange(row, 3).setValue(d.size);
+  if (d.unit)     sheet.getRange(row, 6).setValue(d.unit);
+  if (d.supplier) sheet.getRange(row, 8).setValue(d.supplier);
+  sheet.getRange(row, 9).setValue(new Date());
 
   // make sure the cost formula is intact
-  sheet.getRange(row, 8).setFormula('=IF(F' + row + '=0,0,E' + row + '/F' + row + ')');
+  sheet.getRange(row, 7).setFormula('=IF(E' + row + '=0,0,D' + row + '/E' + row + ')');
 
   SpreadsheetApp.flush();
-  const cpu = sheet.getRange(row, 8).getValue();
+  const cpu = sheet.getRange(row, 7).getValue();
   return 'Updated ' + d.name + ' — now $' + Number(cpu).toFixed(4) + ' per ' +
-         sheet.getRange(row, 7).getValue();
+         sheet.getRange(row, 6).getValue();
 }
 
 /* ========================= ADD A PRODUCT ========================= */
@@ -200,23 +199,22 @@ function addProduct(d) {
 
   const row = firstBlankRow_(prod, 1, 2);
   prod.getRange(row, 1).setValue(name);
-  prod.getRange(row, 2).setValue(d.ar || '');
-  prod.getRange(row, 3).setValue(numOrBlank_(d.yieldQty));
-  prod.getRange(row, 4).setValue(d.yieldUnit || '');
-  prod.getRange(row, 5).setFormula(
-    "=SUMIF('" + SHEET_REC + "'!$J:$J,A" + row + ",'" + SHEET_REC + "'!$H:$H)");
-  prod.getRange(row, 6).setFormula('=IF(C' + row + '=0,0,E' + row + '/C' + row + ')');
-  prod.getRange(row, 7).setValue(numOrZero_(d.packaging));
-  prod.getRange(row, 8).setValue(numOrZero_(d.labor));
-  prod.getRange(row, 9).setFormula('=F' + row + '+G' + row + '+H' + row);
-  prod.getRange(row, 10).setValue(numOrBlank_(d.price));
-  prod.getRange(row, 11).setFormula(
-    '=IF(OR(J' + row + '=0,E' + row + '=0),"—",(J' + row + '-I' + row + ')/J' + row + ')');
-  prod.getRange(row, 12).setValue(d.status || 'Add recipe rows');
+  prod.getRange(row, 2).setValue(numOrBlank_(d.yieldQty));
+  prod.getRange(row, 3).setValue(d.yieldUnit || '');
+  prod.getRange(row, 4).setFormula(
+    "=SUMIF('" + SHEET_REC + "'!$H:$H,A" + row + ",'" + SHEET_REC + "'!$F:$F)");
+  prod.getRange(row, 5).setFormula('=IF(B' + row + '=0,0,D' + row + '/B' + row + ')');
+  prod.getRange(row, 6).setValue(numOrZero_(d.packaging));
+  prod.getRange(row, 7).setValue(numOrZero_(d.labor));
+  prod.getRange(row, 8).setFormula('=E' + row + '+F' + row + '+G' + row);
+  prod.getRange(row, 9).setValue(numOrBlank_(d.price));
+  prod.getRange(row, 10).setFormula(
+    '=IF(OR(I' + row + '=0,D' + row + '=0),"—",(I' + row + '-H' + row + '*B' + row + ')/I' + row + ')');
+  prod.getRange(row, 11).setValue(d.status || 'Add recipe rows');
 
   // start a block for it on Recipe Costing so recipe lines have somewhere to go
   const rec = sh_(SHEET_REC);
-  const blockRow = firstBlankRow_(rec, 10, 2);   // first row with no resolved product
+  const blockRow = firstBlankRow_(rec, 8, 2);   // first row with no resolved product
   ensureRecipeFormulas_(rec, blockRow);
   rec.getRange(blockRow, 1).setValue(name);
 
@@ -234,8 +232,8 @@ function addRecipeLine(d) {
   if (!ingredient) throw new Error('Pick an ingredient.');
 
   const lastRow = Math.max(rec.getLastRow(), 2);
-  const resolved = rec.getRange(2, 10, lastRow - 1, 1).getValues();  // col J
-  const ingCol   = rec.getRange(2, 3,  lastRow - 1, 1).getValues();  // col C
+  const resolved = rec.getRange(2, 8, lastRow - 1, 1).getValues();  // col H
+  const ingCol   = rec.getRange(2, 2, lastRow - 1, 1).getValues();  // col B
 
   var firstFree = 0, blockEnd = 0;
   for (var i = 0; i < resolved.length; i++) {
@@ -253,26 +251,26 @@ function addRecipeLine(d) {
     // block is full — insert a fresh row at the end of it
     rec.insertRowAfter(blockEnd);
     targetRow = blockEnd + 1;
-    rec.getRange(blockEnd, 1, 1, 10).copyTo(rec.getRange(targetRow, 1, 1, 10));
+    rec.getRange(blockEnd, 1, 1, 8).copyTo(rec.getRange(targetRow, 1, 1, 8));
     rec.getRange(targetRow, 1).clearContent();  // stay blank = inherit product
+    rec.getRange(targetRow, 2).clearContent();
     rec.getRange(targetRow, 3).clearContent();
-    rec.getRange(targetRow, 5).clearContent();
-    rec.getRange(targetRow, 9).clearContent();
+    rec.getRange(targetRow, 7).clearContent();
     ensureRecipeFormulas_(rec, targetRow);
   } else {
     // no block exists yet — start one at the first free row
-    targetRow = firstBlankRow_(rec, 10, 2);
+    targetRow = firstBlankRow_(rec, 8, 2);
     ensureRecipeFormulas_(rec, targetRow);
     rec.getRange(targetRow, 1).setValue(product);
   }
 
-  rec.getRange(targetRow, 3).setValue(ingredient);
-  rec.getRange(targetRow, 5).setValue(numOrBlank_(d.qty));
-  rec.getRange(targetRow, 9).setValue(d.notes || '');
+  rec.getRange(targetRow, 2).setValue(ingredient);
+  rec.getRange(targetRow, 3).setValue(numOrBlank_(d.qty));
+  rec.getRange(targetRow, 7).setValue(d.notes || '');
   ensureRecipeFormulas_(rec, targetRow);
 
   SpreadsheetApp.flush();
-  const cost = rec.getRange(targetRow, 8).getValue();
+  const cost = rec.getRange(targetRow, 6).getValue();
   return 'Added ' + ingredient + ' to ' + product + ' — $' + Number(cost).toFixed(2);
 }
 
@@ -283,9 +281,9 @@ function clearRecipeLine(row) {
   const r = Number(row);
   if (!r || r < 2) throw new Error('Bad row.');
   // clear only the typed cells; formulas and block structure stay intact
+  rec.getRange(r, 2).clearContent();
   rec.getRange(r, 3).clearContent();
-  rec.getRange(r, 5).clearContent();
-  rec.getRange(r, 9).clearContent();
+  rec.getRange(r, 7).clearContent();
   SpreadsheetApp.flush();
   return 'Removed that ingredient line.';
 }
@@ -315,20 +313,17 @@ function findRowByValue_(sheet, col, value) {
 
 function ensureRecipeFormulas_(rec, row) {
   const prev = row - 1;
-  rec.getRange(row, 10).setFormula(
-    row === 2 ? '=IF(A2<>"",A2,"")'
-              : '=IF(A' + row + '<>"",A' + row + ',J' + prev + ')');
-  rec.getRange(row, 2).setFormula(
-    '=IFERROR(VLOOKUP(J' + row + ",'" + SHEET_PROD + "'!$A:$L,2,0),\"\")");
-  rec.getRange(row, 4).setFormula(
-    '=IFERROR(VLOOKUP(C' + row + ",'" + SHEET_ING + "'!$A:$K,2,0),\"\")");
-  rec.getRange(row, 6).setFormula(
-    '=IFERROR(VLOOKUP(C' + row + ",'" + SHEET_ING + "'!$A:$K,7,0),\"\")");
-  rec.getRange(row, 7).setFormula(
-    '=IFERROR(VLOOKUP(C' + row + ",'" + SHEET_ING + "'!$A:$K,8,0),0)");
   rec.getRange(row, 8).setFormula(
-    '=IF(C' + row + '="",0,E' + row + '*G' + row + ')');
+    row === 2 ? '=IF(A2<>"",A2,"")'
+              : '=IF(A' + row + '<>"",A' + row + ',H' + prev + ')');
+  rec.getRange(row, 4).setFormula(
+    '=IFERROR(VLOOKUP(B' + row + ",'" + SHEET_ING + "'!$A:$J,6,0),\"\")");
+  rec.getRange(row, 5).setFormula(
+    '=IFERROR(VLOOKUP(B' + row + ",'" + SHEET_ING + "'!$A:$J,7,0),0)");
+  rec.getRange(row, 6).setFormula(
+    '=IF(B' + row + '="",0,C' + row + '*E' + row + ')');
 }
+
 
 function numOrBlank_(v) {
   if (v === '' || v === null || v === undefined) return '';
@@ -390,12 +385,14 @@ function getOrders() {
   const items = [];
   const iLast = si.getLastRow();
   if (iLast >= 2) {
-    const v = si.getRange(2, 1, iLast - 1, 8).getValues();
+    const v = si.getRange(2, 1, iLast - 1, 9).getValues();
     v.forEach(function (r, i) {
-      const id = String(r[0] || '').trim();
+      const prodName = String(r[1] || '').trim();
+      if (!prodName) return;                       // skip empty rows
+      const id = String(r[8] || r[0] || '').trim(); // resolved col I, fallback col A
       if (!id) return;
       items.push({
-        row: i + 2, orderId: id, product: r[1] || '', qty: r[2],
+        row: i + 2, orderId: id, product: prodName, qty: r[2],
         unitPrice: r[3], lineTotal: r[4], lineCost: r[6], notes: r[7] || ''
       });
     });
@@ -440,10 +437,14 @@ function createOrder(d) {
   so.getRange(row, 23).setValue(d.notes || '');
   ensureOrderFormulas_(so, row);
 
+  var firstLine = true;
   d.items.forEach(function (it) {
     if (!it.product) return;
-    const ir = firstBlankRow_(si, 1, 2);
-    si.getRange(ir, 1).setValue(id);
+    const ir = firstBlankRow_(si, 2, 2);        // first row with no Product
+    if (firstLine) {                            // ID shown once per order only
+      si.getRange(ir, 1).setValue(id);
+      firstLine = false;
+    }
     si.getRange(ir, 2).setValue(it.product);
     si.getRange(ir, 3).setValue(numOrZero_(it.qty));
     si.getRange(ir, 8).setValue(it.notes || '');
@@ -539,20 +540,27 @@ function getFinance() {
 }
 
 function ensureOrderFormulas_(so, row) {
-  so.getRange(row, 13).setFormula("=SUMIF('" + SHEET_ITM + "'!$A:$A,A" + row + ",'" + SHEET_ITM + "'!$E:$E)");
+  so.getRange(row, 13).setFormula("=SUMIF('" + SHEET_ITM + "'!$I:$I,A" + row + ",'" + SHEET_ITM + "'!$E:$E)");
   so.getRange(row, 16).setFormula('=M' + row + '+N' + row + '-O' + row);
   so.getRange(row, 18).setFormula('=P' + row + '-Q' + row);
-  so.getRange(row, 19).setFormula("=SUMIF('" + SHEET_ITM + "'!$A:$A,A" + row + ",'" + SHEET_ITM + "'!$G:$G)");
+  so.getRange(row, 19).setFormula("=SUMIF('" + SHEET_ITM + "'!$I:$I,A" + row + ",'" + SHEET_ITM + "'!$G:$G)");
   so.getRange(row, 20).setFormula('=P' + row + '-S' + row);
   so.getRange(row, 21).setFormula('=IF(P' + row + '=0,"—",T' + row + '/P' + row + ')');
 }
 
 function ensureItemFormulas_(si, row) {
+  const prev = row - 1;
+  // resolved Order ID: blank col A means "same order as the row above"
+  si.getRange(row, 9).setFormula(
+    row === 2 ? '=IF(A2<>"",A2,"")'
+              : '=IF(A' + row + '<>"",A' + row + ',I' + prev + ')');
   si.getRange(row, 4).setFormula(
-    "=IFERROR(VLOOKUP(B" + row + ",'" + SHEET_PROD + "'!$A:$L,10,0),0)");
+    "=IFERROR(VLOOKUP(B" + row + ",'" + SHEET_PROD + "'!$A:$I,9,0),0)");
   si.getRange(row, 5).setFormula('=IF(B' + row + '="",0,C' + row + '*D' + row + ')');
   si.getRange(row, 6).setFormula(
-    "=IFERROR(VLOOKUP(B" + row + ",'" + SHEET_PROD + "'!$A:$L,9,0)*VLOOKUP(B" + row +
-    ",'" + SHEET_PROD + "'!$A:$L,3,0),0)");
+    "=IFERROR(VLOOKUP(B" + row + ",'" + SHEET_PROD + "'!$A:$H,8,0)*VLOOKUP(B" + row +
+    ",'" + SHEET_PROD + "'!$A:$B,2,0),0)");
   si.getRange(row, 7).setFormula('=IF(B' + row + '="",0,C' + row + '*F' + row + ')');
 }
+
+
