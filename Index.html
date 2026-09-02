@@ -88,6 +88,7 @@
   <div style="text-align:right;margin-bottom:8px">
     <button class="lnk" id="refresh" style="color:var(--olive);font-size:12px">&#8635; Refresh data</button>
     <span id="refresh-note" style="font-size:11px;color:#8a8272;margin-left:6px"></span>
+    <span style="font-size:10px;color:#c9bfa6;margin-left:6px">build v3</span>
   </div>
 
   <div class="tabs">
@@ -573,13 +574,30 @@ var CATS = ['Ingredients','Packaging','Kitchen Rent','Permits & Licenses','Insur
 
 function loadOrders(){
   google.script.run
-    .withSuccessHandler(function(d){ ORD=d; renderOrderList(); stamp(); })
+    .withSuccessHandler(function(d){
+      if(d && d.ok===false){
+        $('o-list').innerHTML='<div class="msg err" style="display:block">Server error loading orders: '+
+          esc(d.error||'unknown')+'</div>';
+        $('refresh-note').textContent='error';
+        return;
+      }
+      ORD=d; renderOrderList(); stamp();
+    })
     .withFailureHandler(function(e){
       $('o-list').innerHTML='<div class="msg err" style="display:block">Could not load orders: '+
-        esc(e.message)+'</div>'; })
+        esc(e.message)+'</div>';
+      $('refresh-note').textContent='error';
+    })
     .getOrders();
   google.script.run
-    .withSuccessHandler(function(d){ FIN=d; renderFinance(); })
+    .withSuccessHandler(function(d){
+      if(d && d.ok===false){
+        $('f-list').innerHTML='<div class="msg err" style="display:block">Server error loading ledger: '+
+          esc(d.error||'unknown')+'</div>';
+        return;
+      }
+      FIN=d; renderFinance();
+    })
     .withFailureHandler(function(e){
       $('f-list').innerHTML='<div class="msg err" style="display:block">Could not load the ledger: '+
         esc(e.message)+'</div>'; })
