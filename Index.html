@@ -85,6 +85,11 @@
     <div class="sub">Cost Tracker</div>
   </header>
 
+  <div style="text-align:right;margin-bottom:8px">
+    <button class="lnk" id="refresh" style="color:var(--olive);font-size:12px">&#8635; Refresh data</button>
+    <span id="refresh-note" style="font-size:11px;color:#8a8272;margin-left:6px"></span>
+  </div>
+
   <div class="tabs">
     <button class="tab on" data-p="p-order">Orders</button>
     <button class="tab" data-p="p-money">Money</button>
@@ -111,7 +116,7 @@
         <div><label>Fulfillment</label><select id="o-ful">
           <option>Pickup</option><option>Delivery</option></select></div>
         <div><label>Needed date</label><input id="o-date" type="date"></div>
-        <div><label>Needed time</label><input id="o-time" placeholder="10:00 AM"></div>
+        <div><label>Needed time</label><input id="o-time" type="time" step="300"></div>
         <div class="full"><label>Delivery address (if delivery)</label><input id="o-addr"></div>
       </div>
 
@@ -255,11 +260,7 @@
       <div class="grid">
         <div>
           <label>Ingredient name</label>
-          <input id="i-name" placeholder="e.g. Pistachios (shelled)">
-        </div>
-        <div>
-          <label>Arabic name (optional)</label>
-          <input id="i-ar" class="ar" placeholder="فستق مقشر">
+          <input id="i-name" placeholder="e.g. Pistachios (فستق مقشر)">
         </div>
         <div>
           <label>Type</label>
@@ -307,11 +308,7 @@
       <div class="grid">
         <div>
           <label>Product name</label>
-          <input id="p-name" placeholder="e.g. Pistachio Baklava (per lb)">
-        </div>
-        <div>
-          <label>Arabic name (optional)</label>
-          <input id="p-ar" class="ar" placeholder="بقلاوة بالفستق">
+          <input id="p-name" placeholder="e.g. Pistachio Baklava (بقلاوة بالفستق)">
         </div>
         <div>
           <label>Yield qty (units per batch)</label>
@@ -376,6 +373,7 @@ document.querySelectorAll('.tab').forEach(function(t){
     document.querySelectorAll('.panel').forEach(function(x){x.classList.remove('on');});
     t.classList.add('on');
     $(t.dataset.p).classList.add('on');
+    if(t.dataset.p==='p-order' || t.dataset.p==='p-money') loadOrders();
   };
 });
 
@@ -403,6 +401,7 @@ function onData(d){
     var o=document.createElement('option'); o.value=t; o.textContent=t; vt.appendChild(o);
   });
 
+  refreshItemProducts();
   renderLines(); renderProducts(); renderIngredients(); refreshUnit(); refreshCurrent();
 }
 
@@ -501,12 +500,12 @@ $('i-go').onclick=function(){
   google.script.run
     .withSuccessHandler(function(msg){
       b.disabled=false; say(m,msg,'ok');
-      ['i-name','i-ar','i-size','i-price','i-qty','i-unit','i-sup','i-note']
+      ['i-name','i-size','i-price','i-qty','i-unit','i-sup','i-note']
         .forEach(function(id){ $(id).value=''; });
       load();
     })
     .withFailureHandler(function(e){ b.disabled=false; say(m,e.message,'err'); })
-    .addIngredient({name:$('i-name').value, ar:$('i-ar').value, type:$('i-type').value,
+    .addIngredient({name:$('i-name').value, type:$('i-type').value,
       size:$('i-size').value, price:$('i-price').value, qty:$('i-qty').value,
       unit:$('i-unit').value, supplier:$('i-sup').value, notes:$('i-note').value});
 };
@@ -519,11 +518,11 @@ $('p-go').onclick=function(){
   google.script.run
     .withSuccessHandler(function(msg){
       b.disabled=false; say(m,msg,'ok');
-      ['p-name','p-ar','p-yq','p-yu','p-price'].forEach(function(id){ $(id).value=''; });
+      ['p-name','p-yq','p-yu','p-price'].forEach(function(id){ $(id).value=''; });
       load();
     })
     .withFailureHandler(function(e){ b.disabled=false; say(m,e.message,'err'); })
-    .addProduct({name:$('p-name').value, ar:$('p-ar').value, yieldQty:$('p-yq').value,
+    .addProduct({name:$('p-name').value, yieldQty:$('p-yq').value,
       yieldUnit:$('p-yu').value, price:$('p-price').value, status:$('p-status').value});
 };
 
@@ -573,10 +572,56 @@ var CATS = ['Ingredients','Packaging','Kitchen Rent','Permits & Licenses','Insur
             'Other Expense','Order Revenue','Catering Revenue','Other Income'];
 
 function loadOrders(){
-  google.script.run.withSuccessHandler(function(d){
-    ORD=d; renderOrderList(); }).getOrders();
-  google.script.run.withSuccessHandler(function(d){
-    FIN=d; renderFinance(); }).getFinance();
+  google.script.run
+    .withSuccessHandler(function(d){ ORD=d; renderOrderList(); stamp(); })
+    .withFailureHandler(function(e){
+      $('o-list').innerHTML='<div class="msg err" style="display:block">Could not load orders: '+
+        esc(e.message)+'</div>'; })
+    .getOrders();
+  google.script.run
+    .withSuccessHandler(function(d){ FIN=d; renderFinance(); })
+    .withFailureHandler(function(e){
+      $('f-list').innerHTML='<div class="msg err" style="display:block">Could not load the ledger: '+
+        esc(e.message)+'</div>'; })
+    .getFinance();
+}
+
+function stamp(){
+  var d=new Date();
+  $('refresh-note').textContent='updated '+d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+}
+
+function refreshAll(){
+  $('refresh-note').textContent='refreshing…';
+  load(); loadOrders();
+}
+document.getElementById('refresh').onclick=refreshAll;
+
+/* Repopulate every product dropdown in the order builder.
+   Needed because the first item row is created before getData() returns,
+   so at that moment DATA.products is still empty. */
+function refreshItemProducts(){
+  var names = DATA.products.map(function(p){ return p.name; });
+  var sels = document.querySelectorAll('#o-items .it-prod');
+  for (var k = 0; k < sels.length; k++){
+    var sel = sels[k], prev = sel.value;
+    sel.innerHTML = names.map(function(n){
+      return '<option value="'+esc(n)+'">'+esc(n)+'</option>'; }).join('');
+    if (prev && names.indexOf(prev) > -1) sel.value = prev;
+  }
+  preview();
+}
+
+/* Convert "14:30" from the time picker into "2:30 PM" for the sheet. */
+function fmtTime12(v){
+  if(!v) return '';
+  var p = String(v).split(':');
+  if(p.length < 2) return v;
+  var h = parseInt(p[0],10), m = p[1];
+  if(isNaN(h)) return v;
+  var ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12; if(h === 0) h = 12;
+  return h + ':' + m + ' ' + ap;
 }
 
 function itemRowHtml(i){
@@ -645,7 +690,7 @@ $('o-go').onclick=function(){
     .withFailureHandler(function(e){ b.disabled=false; say(m,e.message,'err'); })
     .createOrder({customer:$('o-cust').value, contact:$('o-contact').value,
       channel:$('o-chan').value, fulfillment:$('o-ful').value,
-      neededDate:$('o-date').value, neededTime:$('o-time').value,
+      neededDate:$('o-date').value, neededTime:fmtTime12($('o-time').value),
       address:$('o-addr').value, deliveryFee:$('o-fee').value,
       discount:$('o-disc').value, deposit:$('o-dep').value,
       payMethod:$('o-pm').value, allergy:$('o-allergy').value,
