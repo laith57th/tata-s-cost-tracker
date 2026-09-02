@@ -360,45 +360,75 @@ function nextOrderId_() {
 }
 
 function getOrders() {
-  const so = sh_(SHEET_ORD), si = sh_(SHEET_ITM);
+  try {
+    const so = sh_(SHEET_ORD), si = sh_(SHEET_ITM);
 
-  const orders = [];
-  const oLast = so.getLastRow();
-  if (oLast >= 2) {
-    const v = so.getRange(2, 1, oLast - 1, 24).getValues();
-    v.forEach(function (r, i) {
-      const id = String(r[0] || '').trim();
-      if (!id) return;
-      orders.push({
-        row: i + 2, id: id, dateReceived: fmtDate_(r[1]), customer: r[2] || '',
-        contact: r[3] || '', channel: r[4] || '', fulfillment: r[5] || '',
-        neededDate: fmtDate_(r[6]), neededTime: r[7] || '', address: r[8] || '',
-        status: r[9] || '', payStatus: r[10] || '', payMethod: r[11] || '',
-        subtotal: r[12], deliveryFee: r[13], discount: r[14], total: r[15],
-        deposit: r[16], balance: r[17], cost: r[18], profit: r[19],
-        margin: r[20], allergy: r[21] || '', notes: r[22] || '',
-        logged: String(r[23] || '').trim()
+    const orders = [];
+    const oLast = so.getLastRow();
+    if (oLast >= 2) {
+      const v = so.getRange(2, 1, oLast - 1, 24).getValues();
+      v.forEach(function (r, i) {
+        const id = String(r[0] || '').trim();
+        if (!id) return;
+        orders.push({
+          row: i + 2, id: id, dateReceived: fmtDate_(r[1]), customer: safe_(r[2]),
+          contact: safe_(r[3]), channel: safe_(r[4]), fulfillment: safe_(r[5]),
+          neededDate: fmtDate_(r[6]), neededTime: fmtCell_(r[7]), address: safe_(r[8]),
+          status: safe_(r[9]), payStatus: safe_(r[10]), payMethod: safe_(r[11]),
+          subtotal: num_(r[12]), deliveryFee: num_(r[13]), discount: num_(r[14]), total: num_(r[15]),
+          deposit: num_(r[16]), balance: num_(r[17]), cost: num_(r[18]), profit: num_(r[19]),
+          margin: fmtCell_(r[20]), allergy: safe_(r[21]), notes: safe_(r[22]),
+          logged: String(r[23] || '').trim()
+        });
       });
-    });
-  }
+    }
 
-  const items = [];
-  const iLast = si.getLastRow();
-  if (iLast >= 2) {
-    const v = si.getRange(2, 1, iLast - 1, 9).getValues();
-    v.forEach(function (r, i) {
-      const prodName = String(r[1] || '').trim();
-      if (!prodName) return;                       // skip empty rows
-      const id = String(r[8] || r[0] || '').trim(); // resolved col I, fallback col A
-      if (!id) return;
-      items.push({
-        row: i + 2, orderId: id, product: prodName, qty: r[2],
-        unitPrice: r[3], lineTotal: r[4], lineCost: r[6], notes: r[7] || ''
+    const items = [];
+    const iLast = si.getLastRow();
+    if (iLast >= 2) {
+      const v = si.getRange(2, 1, iLast - 1, 9).getValues();
+      v.forEach(function (r, i) {
+        const prodName = String(r[1] || '').trim();
+        if (!prodName) return;                       // skip empty rows
+        const id = String(r[8] || r[0] || '').trim(); // resolved col I, fallback col A
+        if (!id) return;
+        items.push({
+          row: i + 2, orderId: id, product: prodName, qty: num_(r[2]),
+          unitPrice: num_(r[3]), lineTotal: num_(r[4]), lineCost: num_(r[6]), notes: safe_(r[7])
+        });
       });
-    });
-  }
+    }
 
-  return { orders: orders, items: items, nextId: nextOrderId_() };
+    return { ok: true, orders: orders, items: items, nextId: nextOrderId_() };
+  } catch (err) {
+    // never hang: hand the UI a readable error instead of throwing into the void
+    return { ok: false, error: String(err && err.message || err),
+             orders: [], items: [], nextId: 'TB-0001' };
+  }
+}
+
+/* Coerce any cell into something google.script.run can serialize safely.
+   Dates -> ISO-ish string, numbers stay numbers, everything else -> string. */
+function fmtCell_(v) {
+  if (v === null || v === undefined || v === '') return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    try { return Utilities.formatDate(v, Session.getScriptTimeZone(), 'h:mm a'); }
+    catch (e) { return String(v); }
+  }
+  if (typeof v === 'number') return v;
+  return String(v);
+}
+function safe_(v) {
+  if (v === null || v === undefined) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    try { return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
+    catch (e) { return String(v); }
+  }
+  return String(v);
+}
+function num_(v) {
+  const n = Number(v);
+  return isNaN(n) ? 0 : n;
 }
 
 function fmtDate_(d) {
@@ -519,24 +549,29 @@ function addExpense(d) {
 }
 
 function getFinance() {
-  const wf = sh_(SHEET_FIN);
-  const rows = [];
-  const last = wf.getLastRow();
-  if (last >= 2) {
-    const v = wf.getRange(2, 1, last - 1, 8).getValues();
-    v.forEach(function (r, i) {
-      if (!r[1] && !r[4]) return;
-      rows.push({ row: i + 2, date: fmtDate_(r[0]), type: r[1] || '', category: r[2] || '',
-                  description: r[3] || '', amount: r[4], method: r[5] || '',
-                  orderId: r[6] || '', notes: r[7] || '' });
+  try {
+    const wf = sh_(SHEET_FIN);
+    const rows = [];
+    const last = wf.getLastRow();
+    if (last >= 2) {
+      const v = wf.getRange(2, 1, last - 1, 8).getValues();
+      v.forEach(function (r, i) {
+        if (!r[1] && !r[4]) return;
+        rows.push({ row: i + 2, date: safe_(r[0]), type: safe_(r[1]), category: safe_(r[2]),
+                    description: safe_(r[3]), amount: num_(r[4]), method: safe_(r[5]),
+                    orderId: safe_(r[6]), notes: safe_(r[7]) });
+      });
+    }
+    var inc = 0, exp = 0;
+    rows.forEach(function (r) {
+      const a = Number(r.amount) || 0;
+      if (String(r.type).toLowerCase() === 'income') inc += a; else exp += a;
     });
+    return { ok: true, rows: rows, totalIncome: inc, totalExpense: exp, net: inc - exp };
+  } catch (err) {
+    return { ok: false, error: String(err && err.message || err),
+             rows: [], totalIncome: 0, totalExpense: 0, net: 0 };
   }
-  var inc = 0, exp = 0;
-  rows.forEach(function (r) {
-    const a = Number(r.amount) || 0;
-    if (String(r.type).toLowerCase() === 'income') inc += a; else exp += a;
-  });
-  return { rows: rows, totalIncome: inc, totalExpense: exp, net: inc - exp };
 }
 
 function ensureOrderFormulas_(so, row) {
